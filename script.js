@@ -19,6 +19,52 @@ let editingRekruterId = null;
 let editingVolunteerId = null;
 let isEditingBiodata = false;
 
+// 🆕 FITUR 1: SIMPAN CURRENT PAGE KE LOCALSTORAGE
+function saveCurrentPage(page, extraData = {}) {
+    const pageState = {
+        page: page,
+        selectedRekruterId: selectedRekruterId,
+        selectedVolunteerId: selectedVolunteerId,
+        ...extraData
+    };
+    localStorage.setItem('currentPage', JSON.stringify(pageState));
+}
+
+function restoreCurrentPage() {
+    const saved = localStorage.getItem('currentPage');
+    if (saved) {
+        try {
+            const pageState = JSON.parse(saved);
+            selectedRekruterId = pageState.selectedRekruterId;
+            selectedVolunteerId = pageState.selectedVolunteerId;
+            
+            // Restore halaman yang sesuai
+            if (pageState.page === 'volunteerDetail' && selectedRekruterId && selectedVolunteerId) {
+                // Tampilkan detail volunteer
+                document.getElementById('petaPage').style.display = 'none';
+                document.getElementById('volunteerListPage').style.display = 'none';
+                document.getElementById('volunteerDetailPage').style.display = 'block';
+                renderVolunteerDetail();
+            } else if (pageState.page === 'volunteerList' && selectedRekruterId) {
+                // Tampilkan list volunteer
+                const rekruter = rekruters.find(r => r.id === selectedRekruterId);
+                if (rekruter) {
+                    document.getElementById('volunteerListTitle').textContent = `Volunteer - ${rekruter.namaRekruter}`;
+                    document.getElementById('petaPage').style.display = 'none';
+                    document.getElementById('volunteerListPage').style.display = 'block';
+                    renderVolunteerTable();
+                }
+            } else {
+                // Tampilkan halaman biasa
+                navigateTo(pageState.page || 'home');
+            }
+        } catch (e) {
+            console.error('Gagal restore page:', e);
+            navigateTo('home');
+        }
+    }
+}
+
 // 2. Pemantau Status Login (Auth Listener)
 sb.auth.onAuthStateChange((event, session) => {
     const loginPage = document.getElementById('loginPage');
@@ -27,9 +73,11 @@ sb.auth.onAuthStateChange((event, session) => {
     if (session) {
         loginPage.style.display = 'none';
         mainApp.style.display = 'block';
-        loadData();      
+        loadData().then(() => {
+            // 🆕 Restore halaman setelah data dimuat
+            restoreCurrentPage();
+        });
         setupRealtime(); 
-        navigateTo('home');
     } else {
         loginPage.style.display = 'flex';
         mainApp.style.display = 'none';
@@ -89,6 +137,8 @@ async function handleLogin(e) {
 }
 
 async function handleLogout() {
+    // 🆕 Hapus saved page saat logout
+    localStorage.removeItem('currentPage');
     const { error } = await sb.auth.signOut();
     if (error) alert("Gagal logout: " + error.message);
 }
@@ -112,7 +162,7 @@ async function loadData() {
 }
 
 async function saveData() {
-    console.log("Mencoba menyimpan data ke Supabase...", rekruters); // Tambahkan ini
+    console.log("Mencoba menyimpan data ke Supabase...", rekruters);
     for (const r of rekruters) {
         const { error } = await sb.from('volunteers').upsert({
             id: r.id,
@@ -120,7 +170,6 @@ async function saveData() {
             no_tim: r.noTim,
             volunteers_data: r.volunteers,
             updated_at: new Date()
-
         });
         
         if (error) {
@@ -130,7 +179,6 @@ async function saveData() {
         }
     }
 }
-// ... sisa kode navigasi dan rekruter tetap sama ...
 
 // Navigation
 function navigateTo(page) {
@@ -143,20 +191,23 @@ function navigateTo(page) {
         document.getElementById('homePage').style.display = 'block';
         selectedRekruterId = null;
         selectedVolunteerId = null;
+        saveCurrentPage('home'); // 🆕 Simpan state
     } else if (page === 'peta') {
         document.getElementById('petaPage').style.display = 'block';
         renderRekruterTable();
+        saveCurrentPage('peta'); // 🆕 Simpan state
     } else if (page === 'summary') {
         document.getElementById('summaryPage').style.display = 'block';
         renderSummary();
+        saveCurrentPage('summary'); // 🆕 Simpan state
     }
     if (page === 'treatment') {
         document.getElementById('treatmentPage').style.display = 'block';
-        loadTreatments(); // Fungsi baru untuk ambil data treatment
-        renderTreatmentStats(); // Fungsi baru untuk hitung statistik
+        loadTreatments();
+        renderTreatmentStats();
+        saveCurrentPage('treatment'); // 🆕 Simpan state
     }
 }
-
 
 // Rekruter Functions
 function showAddRekruter() {
@@ -200,11 +251,25 @@ function updateRekruterField(id, field, value) {
     }
 }
 
-function deleteRekruter(id) {
-    if (confirm('Hapus rekruter ini?')) {
-        rekruters = rekruters.filter(r => r.id !== id);
-        saveData();
-        renderRekruterTable();
+async function deleteRekruter(id) {
+    if (confirm('Hapus rekruter ini secara permanen dari database?')) {
+        // 1. Hapus dari Database Supabase
+        const { error } = await sb
+            .from('volunteers')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            alert("Gagal menghapus di cloud: " + error.message);
+            console.error(error);
+        } else {
+            // 2. Jika sukses di cloud, hapus dari tampilan (array lokal)
+            rekruters = rekruters.filter(r => r.id !== id);
+            renderRekruterTable();
+            renderSummary();
+            updateLastSeenUI(); // Update jam terakhir update
+            alert("Data berhasil dihapus permanen.");
+        }
     }
 }
 
@@ -215,12 +280,14 @@ function viewVolunteers(id) {
     document.getElementById('petaPage').style.display = 'none';
     document.getElementById('volunteerListPage').style.display = 'block';
     renderVolunteerTable();
+    saveCurrentPage('volunteerList'); // 🆕 Simpan state
 }
 
 function backToRekruterList() {
     selectedRekruterId = null;
     document.getElementById('volunteerListPage').style.display = 'none';
     document.getElementById('petaPage').style.display = 'block';
+    saveCurrentPage('peta'); // 🆕 Simpan state
 }
 
 function renderRekruterTable() {
@@ -368,12 +435,17 @@ function updateVolunteerField(id, field, value) {
     }
 }
 
-function deleteVolunteer(id) {
+async function deleteVolunteer(id) {
     if (confirm('Hapus volunteer ini?')) {
         const rekruter = rekruters.find(r => r.id === selectedRekruterId);
-        rekruter.volunteers = rekruter.volunteers.filter(v => v.id !== id);
-        saveData();
-        renderVolunteerTable();
+        if (rekruter) {
+            // Hapus dari array lokal
+            rekruter.volunteers = rekruter.volunteers.filter(v => v.id !== id);
+            
+            // Simpan perubahan array tersebut ke Supabase
+            await saveData(); 
+            renderVolunteerTable();
+        }
     }
 }
 
@@ -382,12 +454,14 @@ function viewVolunteerDetail(id) {
     document.getElementById('volunteerListPage').style.display = 'none';
     document.getElementById('volunteerDetailPage').style.display = 'block';
     renderVolunteerDetail();
+    saveCurrentPage('volunteerDetail'); // 🆕 Simpan state
 }
 
 function backToVolunteerList() {
     selectedVolunteerId = null;
     document.getElementById('volunteerDetailPage').style.display = 'none';
     document.getElementById('volunteerListPage').style.display = 'block';
+    saveCurrentPage('volunteerList'); // 🆕 Simpan state
 }
 
 function renderVolunteerTable() {
@@ -557,7 +631,7 @@ function renderTahapan(volunteer) {
     
     grid.innerHTML = tahapans.map(t => `
         <button class="tahapan-button ${volunteer.tahapan[t] ? 'active' : ''}"
-            onclick="updateTahapan('${t}')">
+            onclick="toggleTahapan('${t}')">
             <div class="tahapan-title">${t}</div>
             ${volunteer.tahapan[t] ? `
                 <div class="tahapan-date">
@@ -569,12 +643,34 @@ function renderTahapan(volunteer) {
     `).join('');
 }
 
-function updateTahapan(tahap) {
+// 🆕 FITUR 2: TOGGLE TAHAPAN (BISA CANCEL)
+function toggleTahapan(tahap) {
     const rekruter = rekruters.find(r => r.id === selectedRekruterId);
     const volunteer = rekruter.volunteers.find(v => v.id === selectedVolunteerId);
     
-    volunteer.tahapan[tahap] = new Date().toISOString();
-    volunteer.status = tahap;
+    // Jika sudah aktif, batalkan (set null)
+    if (volunteer.tahapan[tahap] !== null) {
+        if (confirm(`Batalkan tahapan ${tahap}?`)) {
+            volunteer.tahapan[tahap] = null;
+            
+            // Update status ke tahapan tertinggi yang masih aktif
+            let highestActive = 'T1';
+            for (let i = 8; i >= 1; i--) {
+                const t = `T${i}`;
+                if (volunteer.tahapan[t] !== null) {
+                    highestActive = t;
+                    break;
+                }
+            }
+            volunteer.status = highestActive;
+        } else {
+            return; // User membatalkan konfirmasi
+        }
+    } else {
+        // Jika belum aktif, aktifkan
+        volunteer.tahapan[tahap] = new Date().toISOString();
+        volunteer.status = tahap;
+    }
     
     saveData();
     renderVolunteerDetail();
@@ -714,21 +810,18 @@ function setupRealtime() {
     ).subscribe();
 }
 
-
-
 // ==========================================
 // FITUR TREATMENT / RENCANA TINDAK LANJUT
 // ==========================================
 
 // 1. Hitung Statistik (Upgrading, Prioritas, Khusus)
 function renderTreatmentStats() {
-    let countUpgrading = 0; // Sudah punya Group (>= 4 Volunteer di T4)
-    let countPrioritas = 0; // Interpersonal (Punya volunteer tapi < 4)
-    let countKhusus = 0;    // Belum punya volunteer sama sekali
+    let countUpgrading = 0;
+    let countPrioritas = 0;
+    let countKhusus = 0;
 
     rekruters.forEach(r => {
         const totalVol = r.volunteers.length;
-        // Logika Grouping: Minimal 4 orang di status T4
         const t4Count = r.volunteers.filter(v => v.status === 'T4').length;
         
         if (totalVol === 0) {
@@ -787,7 +880,7 @@ async function saveTreatment() {
         tempat: tempat,
         waktu: waktu,
         target: target,
-        realisasi: 0 // Default 0 (Belum ada status warna)
+        realisasi: 0
     };
 
     const { error } = await sb.from('treatments').insert(newTreatment);
@@ -802,7 +895,6 @@ async function saveTreatment() {
 
 // 4. Update Angka Realisasi (Warna)
 async function updateRealisasi(id, currentVal) {
-    // Logika putaran angka: 0 -> 1 -> 2 -> 3 -> 0
     let newVal = currentVal + 1;
     if (newVal > 3) newVal = 0;
 
@@ -811,7 +903,7 @@ async function updateRealisasi(id, currentVal) {
     if (error) {
         alert("Gagal update status: " + error.message);
     } else {
-        loadTreatments(); // Reload tabel untuk melihat perubahan warna
+        loadTreatments();
     }
 }
 
@@ -829,11 +921,9 @@ function renderTreatmentTable() {
     tbody.innerHTML = '';
 
     treatments.forEach(t => {
-        // Cari nama rekruter berdasarkan ID
         const rekruter = rekruters.find(r => r.id == t.rekruter_id);
         const namaRekruter = rekruter ? rekruter.namaRekruter : 'Rekruter Terhapus';
 
-        // Format Tanggal
         const dateObj = new Date(t.rencana_aksi);
         const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
 
@@ -873,18 +963,7 @@ function hideAddTreatment() {
     document.getElementById('addTreatmentForm').style.display = 'none';
 }
 
-// Fungsi untuk menampilkan waktu terakhir update
-async function updateLastSeenUI() {
-    const { data } = await sb.from('volunteers').select('updated_at').order('updated_at', { ascending: false }).limit(1);
-    if (data && data[0]) {
-        const d = new Date(data[0].updated_at);
-        const options = { weekday: 'long', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' };
-        document.getElementById('lastUpdateLabel').innerText = d.toLocaleDateString('id-ID', options);
-    }
-}
-
 async function showLastUpdate() {
-    // Mengambil 1 data terbaru berdasarkan waktu update
     const { data, error } = await sb.from('volunteers')
         .select('updated_at')
         .order('updated_at', { ascending: false })
@@ -892,7 +971,6 @@ async function showLastUpdate() {
 
     if (data && data[0]) {
         const d = new Date(data[0].updated_at);
-        // Format: Hari, Tanggal Bulan Tahun jam:menit
         const options = { 
             weekday: 'long', 
             day: 'numeric', 
