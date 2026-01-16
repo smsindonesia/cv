@@ -247,7 +247,6 @@ function updateRekruterField(id, field, value) {
     const rekruter = rekruters.find(r => r.id === id);
     if (rekruter) {
         rekruter[field] = value;
-        saveData();
     }
 }
 
@@ -267,7 +266,7 @@ async function deleteRekruter(id) {
             rekruters = rekruters.filter(r => r.id !== id);
             renderRekruterTable();
             renderSummary();
-            updateLastSeenUI(); // Update jam terakhir update
+            showLastUpdate(); // Update jam terakhir update
             alert("Data berhasil dihapus permanen.");
         }
     }
@@ -431,7 +430,6 @@ function updateVolunteerField(id, field, value) {
     const volunteer = rekruter.volunteers.find(v => v.id === id);
     if (volunteer) {
         volunteer[field] = value;
-        saveData();
     }
 }
 
@@ -806,7 +804,12 @@ function debounce(func, wait) {
 function setupRealtime() {
     sb.channel('db-live').on('postgres_changes', 
         { event: '*', schema: 'public', table: 'volunteers' }, 
-        () => loadData() 
+        () => {
+            // HANYA refresh jika kita TIDAK sedang buka mode edit
+            if (editingRekruterId === null && editingVolunteerId === null) {
+                loadData();
+            }
+        }
     ).subscribe();
 }
 
