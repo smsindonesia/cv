@@ -12,6 +12,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // State Management
 let rekruters = [];
+let treatments = [];
 let selectedRekruterId = null;
 let selectedVolunteerId = null;
 let editingRekruterId = null;
@@ -106,6 +107,7 @@ async function loadData() {
         }));
         renderRekruterTable();
         renderSummary();
+        showLastUpdate();
     }
 }
 
@@ -116,7 +118,9 @@ async function saveData() {
             id: r.id,
             name: r.namaRekruter,
             no_tim: r.noTim,
-            volunteers_data: r.volunteers
+            volunteers_data: r.volunteers,
+            updated_at: new Date()
+
         });
         
         if (error) {
@@ -130,7 +134,7 @@ async function saveData() {
 
 // Navigation
 function navigateTo(page) {
-    const pages = ['homePage', 'petaPage', 'volunteerListPage', 'volunteerDetailPage', 'summaryPage'];
+    const pages = ['homePage', 'petaPage', 'volunteerListPage', 'volunteerDetailPage', 'summaryPage', 'treatmentPage'];
     pages.forEach(p => {
         document.getElementById(p).style.display = 'none';
     });
@@ -146,7 +150,13 @@ function navigateTo(page) {
         document.getElementById('summaryPage').style.display = 'block';
         renderSummary();
     }
+    if (page === 'treatment') {
+        document.getElementById('treatmentPage').style.display = 'block';
+        loadTreatments(); // Fungsi baru untuk ambil data treatment
+        renderTreatmentStats(); // Fungsi baru untuk hitung statistik
+    }
 }
+
 
 // Rekruter Functions
 function showAddRekruter() {
@@ -489,20 +499,20 @@ function renderBiodata(volunteer) {
     const form = document.getElementById('biodataForm');
     const fields = [
         { key: 'namaLengkap', label: 'Nama Lengkap' },
-        { key: 'nik', label: 'NIK' },
-        { key: 'tempatLahir', label: 'Tempat Lahir' },
-        { key: 'tanggalLahir', label: 'Tanggal Lahir' },
-        { key: 'jenisKelamin', label: 'Jenis Kelamin' },
-        { key: 'agama', label: 'Agama' },
+        { key: 'nik', label: 'Jenis Kelamin' },
+        { key: 'tempatLahir', label: 'Usia' },
+        { key: 'tanggalLahir', label: 'No Hp' },
+        { key: 'jenisKelamin', label: 'Segmen' },
+        { key: 'agama', label: 'Domisili' },
         { key: 'pendidikan', label: 'Pendidikan' },
-        { key: 'pekerjaan', label: 'Pekerjaan' },
-        { key: 'alamat', label: 'Alamat' },
-        { key: 'kota', label: 'Kota' },
-        { key: 'provinsi', label: 'Provinsi' },
-        { key: 'noTelepon', label: 'No Telepon' },
-        { key: 'email', label: 'Email' },
-        { key: 'statusPerkawinan', label: 'Status Perkawinan' },
-        { key: 'keterampilan', label: 'Keterampilan' }
+        { key: 'pekerjaan', label: 'Institusi' },
+        { key: 'alamat', label: 'Semester' },
+        { key: 'kota', label: 'Fakultas' },
+        { key: 'provinsi', label: 'Jurusan' },
+        { key: 'noTelepon', label: 'Profil' },
+        { key: 'email', label: 'Buku Bacaan' },
+        { key: 'statusPerkawinan', label: 'Tokoh' },
+        { key: 'keterampilan', label: 'Komunikasi' }
     ];
     
     form.innerHTML = fields.map(field => `
@@ -598,16 +608,19 @@ function renderStatus(volunteer) {
     document.getElementById('completedStages').textContent = `${completed} / 8`;
 }
 
-// Summary Functions
 function renderSummary() {
     const summary = calculateSummary();
-    const grid = document.getElementById('summaryGrid');
     
-    const cards = [
+    // 1. Kotak Rekruter & Total (4 Kotak)
+    const rekruterCards = [
         { label: 'Total Rekruter', value: summary.totalRekruter, color: 'bg-blue' },
         { label: 'Belum Punya Volunteer', value: summary.rekruterWithoutVolunteers, color: 'bg-red' },
         { label: 'Sudah Punya Volunteer', value: summary.rekruterWithVolunteers, color: 'bg-green' },
-        { label: 'Total Volunteer', value: summary.totalVolunteers, color: 'bg-purple' },
+        { label: 'Total Volunteer', value: summary.totalVolunteers, color: 'bg-purple' }
+    ];
+
+    // 2. Kotak Tahapan (8 Kotak)
+    const tahapanCards = [
         { label: 'Total T1', value: summary.T1, color: 'bg-indigo' },
         { label: 'Total T2', value: summary.T2, color: 'bg-pink' },
         { label: 'Total T3', value: summary.T3, color: 'bg-orange' },
@@ -615,19 +628,29 @@ function renderSummary() {
         { label: 'Total T5', value: summary.T5, color: 'bg-cyan' },
         { label: 'Total T6 (OV)', value: summary.T6, color: 'bg-emerald' },
         { label: 'Total T7 (MV)', value: summary.T7, color: 'bg-lime' },
-        { label: 'Total T8 (HV)', value: summary.T8, color: 'bg-amber' },
+        { label: 'Total T8 (HV)', value: summary.T8, color: 'bg-amber' }
+    ];
+
+    // 3. Kotak Potensi (3 Kotak)
+    const potensiCards = [
         { label: 'Potensi Grouping', value: summary.potensiGrouping, color: 'bg-violet', note: '≥4 volunteer di T3' },
         { label: 'Grouping', value: summary.grouping, color: 'bg-fuchsia', note: '≥4 volunteer di T4' },
         { label: 'Interpersonal', value: summary.interpersonal, color: 'bg-rose', note: '<4 volunteer di T1-T3' }
     ];
-    
-    grid.innerHTML = cards.map(card => `
+
+    // Fungsi pembantu untuk membuat HTML kartu
+    const createCardsHTML = (cards) => cards.map(card => `
         <div class="summary-card ${card.color}">
             <div class="summary-label">${card.label}</div>
             <div class="summary-value">${card.value}</div>
             ${card.note ? `<div class="summary-note">${card.note}</div>` : ''}
         </div>
     `).join('');
+
+    // Masukkan ke masing-masing section
+    document.getElementById('summaryRekruter').innerHTML = createCardsHTML(rekruterCards);
+    document.getElementById('summaryTahapan').innerHTML = createCardsHTML(tahapanCards);
+    document.getElementById('summaryPotensi').innerHTML = createCardsHTML(potensiCards);
 }
 
 function calculateSummary() {
@@ -689,4 +712,196 @@ function setupRealtime() {
         { event: '*', schema: 'public', table: 'volunteers' }, 
         () => loadData() 
     ).subscribe();
+}
+
+
+
+// ==========================================
+// FITUR TREATMENT / RENCANA TINDAK LANJUT
+// ==========================================
+
+// 1. Hitung Statistik (Upgrading, Prioritas, Khusus)
+function renderTreatmentStats() {
+    let countUpgrading = 0; // Sudah punya Group (>= 4 Volunteer di T4)
+    let countPrioritas = 0; // Interpersonal (Punya volunteer tapi < 4)
+    let countKhusus = 0;    // Belum punya volunteer sama sekali
+
+    rekruters.forEach(r => {
+        const totalVol = r.volunteers.length;
+        // Logika Grouping: Minimal 4 orang di status T4
+        const t4Count = r.volunteers.filter(v => v.status === 'T4').length;
+        
+        if (totalVol === 0) {
+            countKhusus++;
+        } else if (t4Count >= 4) {
+            countUpgrading++;
+        } else {
+            countPrioritas++;
+        }
+    });
+
+    document.getElementById('countUpgrading').textContent = countUpgrading;
+    document.getElementById('countPrioritas').textContent = countPrioritas;
+    document.getElementById('countKhusus').textContent = countKhusus;
+}
+
+// 2. Load Data Treatment dari Supabase
+async function loadTreatments() {
+    const { data, error } = await sb.from('treatments').select('*').order('rencana_aksi', { ascending: true });
+    if (error) {
+        console.error('Gagal ambil treatment:', error);
+    } else {
+        treatments = data;
+        renderTreatmentTable();
+    }
+    
+    // Siapkan dropdown nama rekruter
+    const select = document.getElementById('inputKepada');
+    select.innerHTML = '<option value="">-- Pilih Rekruter --</option>';
+    rekruters.forEach(r => {
+        select.innerHTML += `<option value="${r.id}">${r.namaRekruter}</option>`;
+    });
+}
+
+// 3. Simpan Treatment Baru
+async function saveTreatment() {
+    const pic = document.getElementById('inputPIC').value;
+    const status = document.getElementById('inputStatusTreatment').value;
+    const rekruterId = document.getElementById('inputKepada').value;
+    const tgl = document.getElementById('inputTanggal').value;
+    const tempat = document.getElementById('inputTempat').value;
+    const waktu = document.getElementById('inputWaktu').value;
+    const target = document.getElementById('inputTarget').value;
+
+    if (!rekruterId || !tgl) {
+        alert("Mohon pilih Rekruter dan Tanggal Rencana Aksi");
+        return;
+    }
+
+    const newTreatment = {
+        id: Date.now(),
+        pic: pic,
+        status_treatment: status,
+        rekruter_id: rekruterId,
+        rencana_aksi: tgl,
+        tempat: tempat,
+        waktu: waktu,
+        target: target,
+        realisasi: 0 // Default 0 (Belum ada status warna)
+    };
+
+    const { error } = await sb.from('treatments').insert(newTreatment);
+    
+    if (error) {
+        alert("Gagal simpan: " + error.message);
+    } else {
+        loadTreatments();
+        hideAddTreatment();
+    }
+}
+
+// 4. Update Angka Realisasi (Warna)
+async function updateRealisasi(id, currentVal) {
+    // Logika putaran angka: 0 -> 1 -> 2 -> 3 -> 0
+    let newVal = currentVal + 1;
+    if (newVal > 3) newVal = 0;
+
+    const { error } = await sb.from('treatments').update({ realisasi: newVal }).eq('id', id);
+    
+    if (error) {
+        alert("Gagal update status: " + error.message);
+    } else {
+        loadTreatments(); // Reload tabel untuk melihat perubahan warna
+    }
+}
+
+// 5. Hapus Treatment
+async function deleteTreatment(id) {
+    if(confirm("Hapus rencana ini?")) {
+        const { error } = await sb.from('treatments').delete().eq('id', id);
+        if(!error) loadTreatments();
+    }
+}
+
+// 6. Render Tabel
+function renderTreatmentTable() {
+    const tbody = document.getElementById('treatmentTableBody');
+    tbody.innerHTML = '';
+
+    treatments.forEach(t => {
+        // Cari nama rekruter berdasarkan ID
+        const rekruter = rekruters.find(r => r.id == t.rekruter_id);
+        const namaRekruter = rekruter ? rekruter.namaRekruter : 'Rekruter Terhapus';
+
+        // Format Tanggal
+        const dateObj = new Date(t.rencana_aksi);
+        const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${t.pic}</strong></td>
+            <td><span class="status-badge">${t.status_treatment}</span></td>
+            <td>${namaRekruter}</td>
+            <td>
+                <div>${dateStr}</div>
+                <small style="color:var(--gray-500)">${t.waktu}</small>
+            </td>
+            <td>${t.tempat}</td>
+            <td>${t.target}</td>
+            <td>
+                <div class="realisasi-box realisasi-${t.realisasi}" 
+                     onclick="updateRealisasi(${t.id}, ${t.realisasi})"
+                     title="Klik untuk ubah status">
+                    ${t.realisasi === 0 ? '-' : t.realisasi}
+                </div>
+            </td>
+            <td>
+                <button class="btn-icon delete" onclick="deleteTreatment(${t.id})">
+                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function showAddTreatment() {
+    document.getElementById('addTreatmentForm').style.display = 'block';
+}
+
+function hideAddTreatment() {
+    document.getElementById('addTreatmentForm').style.display = 'none';
+}
+
+// Fungsi untuk menampilkan waktu terakhir update
+async function updateLastSeenUI() {
+    const { data } = await sb.from('volunteers').select('updated_at').order('updated_at', { ascending: false }).limit(1);
+    if (data && data[0]) {
+        const d = new Date(data[0].updated_at);
+        const options = { weekday: 'long', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' };
+        document.getElementById('lastUpdateLabel').innerText = d.toLocaleDateString('id-ID', options);
+    }
+}
+
+async function showLastUpdate() {
+    // Mengambil 1 data terbaru berdasarkan waktu update
+    const { data, error } = await sb.from('volunteers')
+        .select('updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+    if (data && data[0]) {
+        const d = new Date(data[0].updated_at);
+        // Format: Hari, Tanggal Bulan Tahun jam:menit
+        const options = { 
+            weekday: 'long', 
+            day: 'numeric', 
+            month: 'short', 
+            year: 'numeric',
+            hour: '2-digit', 
+            minute: '2-digit' 
+        };
+        const formattedDate = d.toLocaleDateString('id-ID', options);
+        document.getElementById('lastUpdateLabel').innerText = formattedDate;
+    }
 }

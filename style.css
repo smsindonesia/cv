@@ -991,6 +991,47 @@ textarea:focus {
     z-index: 1;
 }
 
+.summary-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Mengatur baris tahapan menjadi 4 kolom tetap */
+.tahapan-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* Memaksa 4 kolom per baris */
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Responsif: Jika dibuka di HP (layar kecil), otomatis jadi 2 kolom agar tidak sempit */
+@media (max-width: 600px) {
+    .tahapan-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.summary-divider {
+    border: 0;
+    height: 1px;
+    background: var(--gray-300);
+    margin: 2.5rem 0;
+    position: relative;
+}
+
+.summary-divider::after {
+    content: '▼';
+    position: absolute;
+    left: 50%;
+    top: -10px;
+    background: var(--gray-50);
+    padding: 0 10px;
+    color: var(--gray-400);
+    font-size: 0.8rem;
+}
+
 /* Gradient Colors - Premium */
 .bg-blue { 
     background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
@@ -1267,3 +1308,53 @@ select:focus-visible {
     }
     */
 }
+
+/* Styling untuk Form Grid Custom */
+.form-grid-custom {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+/* Warna Realisasi */
+.realisasi-box {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+    margin: 0 auto;
+    cursor: pointer;
+    border: 2px solid rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+
+.realisasi-box:hover {
+    transform: scale(1.1);
+}
+
+.realisasi-0 { background-color: #e5e7eb; color: #374151; } /* Belum diisi */
+.realisasi-1 { background-color: #10b981; } /* Hijau - Terlaksana */
+.realisasi-2 { background-color: #f59e0b; } /* Kuning - Reschedule */
+.realisasi-3 { background-color: #ef4444; } /* Merah - Gagal */
+
+
+
+
+
+/* Badge Update di Home */
+.last-update-badge { text-align: center; color: var(--gray-600); display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 2rem; }
+
+/* Layout Summary 4 Atas 4 Bawah */
+.tahapan-row { display: grid; grid-template-columns: repeat(4, 1fr) !important; gap: 1rem; }
+@media (max-width: 768px) { .tahapan-row { grid-template-columns: repeat(2, 1fr) !important; } }
+
+/* Warna Tabel Realisasi Treatment */
+.real-0 { background: #e5e7eb; color: #4b5563; } /* Default */
+.real-1 { background: #10b981; color: white; } /* Hijau */
+.real-2 { background: #f59e0b; color: white; } /* Kuning */
+.real-3 { background: #ef4444; color: white; } /* Merah */
+.realisasi-box { width: 35px; height: 35px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; margin: 0 auto; }
