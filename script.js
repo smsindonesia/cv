@@ -255,7 +255,9 @@ function editRekruter(id) {
 
 function saveRekruter(id) {
     editingRekruterId = null;
+    renderRekruterTable();
     saveData();
+    showLastUpdate();
 }
 
 function updateRekruterField(id, field, value) {
@@ -316,13 +318,12 @@ function renderRekruterTable() {
                 <td>${index + 1}</td>
     <td>
         <input type="text" value="${rekruter.noTim}" 
-            class="table-input"
-            oninput="updateRekruterField(${rekruter.id}, 'noTim', this.value)"> 
-    </td>
-    <td>
-        <input type="text" value="${rekruter.namaRekruter}" 
-            class="table-input"
-            oninput="updateRekruterField(${rekruter.id}, 'namaRekruter', this.value)">
+    class="table-input"
+    oninput="updateRekruterField(${rekruter.id}, 'noTim', this.value)"> 
+
+<input type="text" value="${rekruter.namaRekruter}" 
+    class="table-input"
+    oninput="updateRekruterField(${rekruter.id}, 'namaRekruter', this.value)">
     </td>
                 <td style="text-align: center;">${rekruter.volunteers.length}</td>
                 <td>
@@ -820,9 +821,11 @@ function setupRealtime() {
     sb.channel('db-live').on('postgres_changes', 
         { event: '*', schema: 'public', table: 'volunteers' }, 
         () => {
-            // HANYA refresh jika kita TIDAK sedang buka mode edit
-            if (editingRekruterId === null && editingVolunteerId === null) {
+            // HANYA refresh jika tidak sedang edit rekruter atau volunteer
+            if (editingRekruterId === null && editingVolunteerId === null && isEditingBiodata === false) {
                 loadData();
+            } else {
+                console.log("Menunda refresh agar input tidak loncat...");
             }
         }
     ).subscribe();
