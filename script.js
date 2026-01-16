@@ -137,20 +137,26 @@ async function handleLogin(e) {
 }
 
 async function handleLogout() {
-    // 1. Hapus state halaman secara lokal dulu agar aplikasi bersih
+    // 1. Hapus state halaman yang tersimpan agar tidak balik ke home saat login lagi
     localStorage.removeItem('currentPage');
     
-    try {
-        // 2. Coba logout ke server Supabase
-        const { error } = await sb.auth.signOut();
-        if (error) console.warn("Koneksi Supabase gagal, membersihkan sesi lokal saja.");
-    } catch (err) {
-        console.error("Logout error:", err);
+    // 2. Hapus sesi Supabase secara paksa dari browser storage
+    // Ini penting karena Tracking Prevention sering menghalangi fungsi signOut standar
+    for (let key in localStorage) {
+        if (key.includes('sb-')) {
+            localStorage.removeItem(key);
+        }
     }
 
-    // 3. PAKSA kembali ke tampilan login meskipun server gagal merespon
-    // Ini akan membersihkan semua variabel di memori
-    window.location.reload(); 
+    try {
+        // 3. Beritahu server Supabase untuk logout
+        await sb.auth.signOut();
+    } catch (error) {
+        console.warn("Gagal kontak server, tapi sesi lokal sudah dihapus.");
+    }
+
+    // 4. Paksa pindah ke halaman login dan refresh total
+    window.location.href = window.location.origin + window.location.pathname;
 }
 
 // 5. Database Operations (Load & Save)
