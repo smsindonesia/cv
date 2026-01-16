@@ -240,7 +240,6 @@ function editRekruter(id) {
 function saveRekruter(id) {
     editingRekruterId = null;
     saveData();
-    renderRekruterTable();
 }
 
 function updateRekruterField(id, field, value) {
@@ -299,16 +298,16 @@ function renderRekruterTable() {
         if (editingRekruterId === rekruter.id) {
             tr.innerHTML = `
                 <td>${index + 1}</td>
-                <td>
-                    <input type="text" value="${rekruter.noTim}" 
-                        class="table-input"
-                        onchange="updateRekruterField(${rekruter.id}, 'noTim', this.value)">
-                </td>
-                <td>
-                    <input type="text" value="${rekruter.namaRekruter}" 
-                        class="table-input"
-                        onchange="updateRekruterField(${rekruter.id}, 'namaRekruter', this.value)">
-                </td>
+    <td>
+        <input type="text" value="${rekruter.noTim}" 
+            class="table-input"
+            oninput="updateRekruterField(${rekruter.id}, 'noTim', this.value)"> 
+    </td>
+    <td>
+        <input type="text" value="${rekruter.namaRekruter}" 
+            class="table-input"
+            oninput="updateRekruterField(${rekruter.id}, 'namaRekruter', this.value)">
+    </td>
                 <td style="text-align: center;">${rekruter.volunteers.length}</td>
                 <td>
                     <div class="action-buttons">
