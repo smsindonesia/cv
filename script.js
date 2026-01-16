@@ -240,6 +240,7 @@ function editRekruter(id) {
 function saveRekruter(id) {
     editingRekruterId = null;
     saveData();
+    renderRekruterTable();
 }
 
 function updateRekruterField(id, field, value) {
