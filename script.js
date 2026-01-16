@@ -137,10 +137,20 @@ async function handleLogin(e) {
 }
 
 async function handleLogout() {
-    // 🆕 Hapus saved page saat logout
+    // 1. Hapus state halaman secara lokal dulu agar aplikasi bersih
     localStorage.removeItem('currentPage');
-    const { error } = await sb.auth.signOut();
-    if (error) alert("Gagal logout: " + error.message);
+    
+    try {
+        // 2. Coba logout ke server Supabase
+        const { error } = await sb.auth.signOut();
+        if (error) console.warn("Koneksi Supabase gagal, membersihkan sesi lokal saja.");
+    } catch (err) {
+        console.error("Logout error:", err);
+    }
+
+    // 3. PAKSA kembali ke tampilan login meskipun server gagal merespon
+    // Ini akan membersihkan semua variabel di memori
+    window.location.reload(); 
 }
 
 // 5. Database Operations (Load & Save)
