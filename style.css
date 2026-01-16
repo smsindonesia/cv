@@ -205,7 +205,6 @@ body {
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
-    transform: translateY(-2px);
 }
 
 .form-group input::placeholder,
@@ -609,7 +608,6 @@ tbody tr {
 
 tbody tr:hover {
     background: linear-gradient(90deg, rgba(99, 102, 241, 0.05) 0%, transparent 100%);
-    transform: scale(1.01);
 }
 
 tbody tr:last-child td {
@@ -1007,11 +1005,6 @@ textarea:focus {
 }
 
 /* Responsif: Jika dibuka di HP (layar kecil), otomatis jadi 2 kolom agar tidak sempit */
-@media (max-width: 600px) {
-    .tahapan-row {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
 
 .summary-divider {
     border: 0;
